@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOLMAR — Streets of the Sun Coast</title>
+<style>
+  :root {
+    --ink: #fff6e8;
+    --muted: #d8c9a8;
+    --panel: rgba(20, 16, 10, 0.72);
+    --hairline: rgba(255, 246, 232, 0.22);
+    --gold: #ffd23e;
+    --red: #e5484d;
+    --green: #7ec850;
+    --teal: #35c4b5;
+    --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-num: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #f2c98d; color: var(--ink); font-family: var(--font-ui); }
+  #game, #game canvas { position: fixed; inset: 0; display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #minimap-wrap { position: fixed; left: 18px; top: 16px; background: var(--panel); border: 1px solid var(--hairline); padding: 6px; }
+  #minimap { display: block; }
+  #minimap-label { font-size: 10px; letter-spacing: 0.16em; color: var(--muted); margin-top: 4px; text-align: center; }
+  #topbar { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #stars { font-size: 26px; letter-spacing: 4px; text-shadow: 0 2px 6px #000; }
+  #cash-text { font-family: var(--font-num); font-size: 22px; color: var(--green); text-shadow: 0 1px 4px #000; margin-top: 2px; }
+  #mission-wrap { position: fixed; top: 84px; left: 50%; transform: translateX(-50%); width: min(560px, 90vw); text-align: center; }
+  #mission-text { font-size: 14px; color: var(--ink); text-shadow: 0 1px 5px #000; background: var(--panel); border: 1px solid var(--hairline); padding: 7px 12px; }
+  #coins-text { margin-top: 4px; font-size: 12px; color: var(--gold); text-shadow: 0 1px 4px #000; }
+  #feed { position: fixed; right: 18px; top: 16px; text-align: right; font-size: 12.5px; line-height: 1.5; text-shadow: 0 1px 3px #000; }
+  #feed div { background: rgba(10, 10, 8, 0.45); padding: 2px 8px; margin-bottom: 3px; }
+  #crosshair { position: fixed; left: 50%; top: 50%; width: 0; height: 0; }
+  #crosshair i { position: absolute; background: var(--ink); box-shadow: 0 0 3px #000; }
+  #crosshair i:nth-child(1) { left: -1px; top: -11px; width: 2px; height: 7px; }
+  #crosshair i:nth-child(2) { left: -1px; top: 4px; width: 2px; height: 7px; }
+  #crosshair i:nth-child(3) { top: -1px; left: -11px; height: 2px; width: 7px; }
+  #crosshair i:nth-child(4) { top: -1px; left: 4px; height: 2px; width: 7px; }
+  #hitmarker { position: fixed; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; color: var(--gold); }
+  #hitmarker i { position: absolute; background: currentColor; width: 2px; height: 8px; }
+  #hitmarker i:nth-child(1) { transform: translate(-9px, -13px) rotate(-45deg); }
+  #hitmarker i:nth-child(2) { transform: translate(7px, -13px) rotate(45deg); }
+  #hitmarker i:nth-child(3) { transform: translate(-9px, 5px) rotate(45deg); }
+  #hitmarker i:nth-child(4) { transform: translate(7px, 5px) rotate(-45deg); }
+  #vitals { position: fixed; left: 22px; bottom: 20px; }
+  #hp-row { display: flex; align-items: baseline; gap: 10px; }
+  #hp-text { font-family: var(--font-num); font-size: 44px; line-height: 1; text-shadow: 0 2px 6px #000; }
+  #armor-text { font-size: 11px; letter-spacing: 0.12em; color: var(--teal); }
+  #hp-track, #armor-track { width: 210px; height: 7px; background: rgba(255,255,255,0.16); margin-top: 5px; }
+  #hp-bar, #armor-bar { height: 100%; width: 100%; background: var(--green); }
+  #armor-bar { background: var(--teal); width: 0; }
+  #ammo-box { position: fixed; right: 22px; bottom: 20px; text-align: right; }
+  #gun-name { font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
+  #ammo-line { display: flex; align-items: baseline; justify-content: flex-end; gap: 7px; font-family: var(--font-num); }
+  #ammo-mag { font-size: 46px; line-height: 1; text-shadow: 0 2px 6px #000; }
+  #ammo-reserve { font-size: 16px; color: var(--muted); }
+  #speed-box { position: fixed; right: 22px; bottom: 108px; text-align: right; font-family: var(--font-num); text-shadow: 0 1px 4px #000; }
+  #speed { font-size: 30px; }
+  #car-name { font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
+  #banner { position: fixed; left: 50%; top: 26%; transform: translateX(-50%); text-align: center; }
+  #banner[hidden] { display: none; }
+  #banner-title { font-size: 40px; font-weight: 800; letter-spacing: 0.05em; color: var(--gold); text-shadow: 0 3px 14px #000; }
+  #banner-sub { font-size: 15px; color: var(--muted); text-shadow: 0 1px 6px #000; margin-top: 4px; }
+  #prompt { position: fixed; left: 50%; bottom: 24%; transform: translateX(-50%); font-size: 15px; font-weight: 600; color: var(--ink); text-shadow: 0 1px 5px #000; }
+  #damage-vignette { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 52%, rgba(190, 18, 24, 0.55) 100%); }
+  #hint { position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); font-size: 11px; color: rgba(255,246,232,0.65); letter-spacing: 0.05em; text-shadow: 0 1px 3px #000; }
+  .panel-wrap { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(20, 12, 4, 0.55); pointer-events: auto; }
+  .panel-wrap[hidden] { display: none; }
+  .panel { width: min(600px, 92vw); max-height: 92vh; overflow: auto; background: #1d150c; border: 1px solid var(--hairline); padding: 30px 34px; }
+  .panel h1 { margin: 0; font-size: 52px; letter-spacing: 0.06em; font-weight: 800; }
+  .panel h1 .sol { color: var(--gold); }
+  .panel h2 { margin: 0 0 6px; font-size: 26px; letter-spacing: 0.04em; }
+  .panel p { color: var(--muted); line-height: 1.55; font-size: 14.5px; margin: 10px 0; }
+  .panel .cta { font: inherit; font-weight: 600; font-size: 16px; padding: 12px 22px; margin-top: 12px; margin-right: 8px; background: var(--gold); color: #241a05; border: 0; cursor: pointer; }
+  .panel .cta:hover { background: var(--ink); }
+  .panel .cta.ghost { background: transparent; color: var(--ink); border: 1px solid var(--hairline); }
+  .keys { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 18px; font-size: 13px; color: var(--muted); }
+  .keys kbd { display: inline-block; min-width: 22px; text-align: center; padding: 1px 5px; margin-right: 5px; border: 1px solid var(--hairline); background: #0e0a06; color: var(--ink); font-family: var(--font-num); font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="hud" aria-hidden="true">
+  <div id="minimap-wrap">
+    <canvas id="minimap" width="190" height="150"></canvas>
+    <div id="minimap-label">SOLMAR BAY</div>
+  </div>
+  <div id="topbar">
+    <div id="stars">☆☆☆☆☆</div>
+    <div id="cash-text">$250</div>
+  </div>
+  <div id="mission-wrap">
+    <div id="mission-text">Free roam — follow the gold beacon.</div>
+    <div id="coins-text">☀ 0/24</div>
+  </div>
+  <div id="feed"></div>
+  <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+  <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div id="vitals">
+    <div id="hp-row"><span id="hp-text">100</span><span id="armor-text"></span></div>
+    <div id="hp-track"><div id="hp-bar"></div></div>
+    <div id="armor-track"><div id="armor-bar"></div></div>
+  </div>
+  <div id="speed-box"><div id="speed"></div><div id="car-name"></div></div>
+  <div id="ammo-box">
+    <div id="gun-name">FISTS</div>
+    <div id="ammo-line"><span id="ammo-mag">—</span><span id="ammo-reserve"></span></div>
+  </div>
+  <div id="banner" hidden><div id="banner-title"></div><div id="banner-sub"></div></div>
+  <div id="prompt"></div>
+  <div id="hint">WASD move / drive · Mouse orbit · F steal car · E interact · LMB shoot · R reload · 1-4 weapons · C camera · M mute · Esc pause</div>
+</div>
+<div id="damage-vignette"></div>
+
+<div id="menu" class="panel-wrap">
+  <section class="panel" role="dialog" aria-modal="true">
+    <h1><span class="sol">SOL</span>MAR</h1>
+    <p><b>Streets of the Sun Coast.</b> You are Mara Quinn, getaway driver. Fixer Eddie
+    Marlow has work; rival Vince Kroll wants you off the road. Steal cars, outrun the
+    Solmar PD, run six story jobs from the docks to The Palms Casino, and grab all 24
+    sun-coins hidden around the bay. Golden hour never ends here — the heat does not
+    either.</p>
+    <button id="play-btn" class="cta" type="button">New Game</button>
+    <button id="continue-btn" class="cta ghost" type="button" hidden>Continue</button>
+    <ul class="keys">
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move / drive</li>
+      <li><kbd>Mouse</kbd> Orbit camera · <kbd>Click</kbd> Lock</li>
+      <li><kbd>Shift</kbd> Run</li>
+      <li><kbd>Space</kbd> Jump / handbrake</li>
+      <li><kbd>F</kbd> Steal / enter / exit car</li>
+      <li><kbd>E</kbd> Interact (jobs, gun locker)</li>
+      <li><kbd>LMB</kbd> Punch / shoot</li>
+      <li><kbd>R</kbd> Reload · <kbd>1</kbd>–<kbd>4</kbd> Weapons</li>
+      <li><kbd>C</kbd> Camera · <kbd>M</kbd> Mute</li>
+      <li><kbd>Esc</kbd> / <kbd>P</kbd> Pause</li>
+    </ul>
+  </section>
+</div>
+
+<div id="pause" class="panel-wrap" hidden>
+  <section class="panel" role="dialog">
+    <h2>Paused</h2>
+    <p>Solmar waits. The cops, less so.</p>
+    <button id="resume-btn" class="cta" type="button">Resume</button>
+    <button id="quit-btn" class="cta ghost" type="button">Save &amp; Title</button>
+  </section>
+</div>
+
+<div id="gameover" class="panel-wrap" hidden>
+  <section class="panel" role="dialog">
+    <h2 id="final-title">Busted</h2>
+    <p id="final-sub"></p>
+    <button id="again-btn" class="cta" type="button">Back on the streets</button>
+  </section>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.min.js"
+  }
+}
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
